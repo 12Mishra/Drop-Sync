@@ -1,6 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/app/_components/SessionProvider"; // Ensure correct path
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,6 +28,13 @@ export default function RootLayout({ children }) {
         <SessionProvider> {/* Ensure Provider wraps the entire app */}
           {children}
         </SessionProvider>
+        <ToastContainer 
+        position="top-right" 
+        autoClose={3000}
+        theme="dark"  
+        className="z-50" 
+        toastClassName="relative"
+      />
       </body>
     </html>
   );

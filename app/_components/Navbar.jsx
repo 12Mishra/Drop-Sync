@@ -11,9 +11,13 @@ export default function Navbar() {
   function handleLoginRouting() {
     router.push("/auth/login");
   }
-  
+
   function handleSignupRouting() {
     router.push("/auth/signup");
+  }
+
+  function handleUploadRoute(){
+    router.push('/file-upload')
   }
 
   return (
@@ -28,12 +32,20 @@ export default function Navbar() {
 
           <div className="flex gap-4">
             {session ? (
-              <button
-                onClick={() => signOut()} 
-                className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-700 transition-colors"
-              >
-                Logout
-              </button>
+              <>
+                <button
+                  onClick={() => handleUploadRoute()}
+                  className="px-4 py-2 text-white hover:text-amber-400 transition-colors"
+                >
+                  Uploads
+                </button>
+                <button
+                  onClick={() => signOut()}
+                  className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-700 transition-colors"
+                >
+                  Logout
+                </button>
+              </>
             ) : (
               <>
                 <button

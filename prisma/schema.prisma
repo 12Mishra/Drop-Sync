@@ -17,4 +17,17 @@ model User {
   id       Int    @id @default(autoincrement())
   email    String @unique
   password String
+  files Files[]
+  createdAt DateTime @default(now())
+}
+
+model Files {
+  id       Int     @id @default(autoincrement())
+  fileName String?
+  fileURL  String
+  user_id  Int     
+  user     User    @relation(fields: [user_id], references: [id])
+  createdAt DateTime @default(now()) 
+  
+  @@index([user_id]) 
 }

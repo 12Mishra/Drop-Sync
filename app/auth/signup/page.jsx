@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "react-toastify";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createNewUser } from "@/actions/auth/auth";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { data: session } = useSession();
 
   const handleSignUp = useCallback(
     async (e) => {
@@ -29,6 +31,12 @@ export default function SignUp() {
     },
     [email, password, router]
   );
+
+  useEffect(() => {
+    if (session) {
+      router.push("/");
+    }
+  }, [session, router]);
   return (
     <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -60,7 +68,6 @@ export default function SignUp() {
                 autoComplete="email"
                 required
                 className="appearance-none rounded-md relative block w-full px-3 py-2 border border-white-300 placeholder-white-500 text-white-900 focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
-            
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
