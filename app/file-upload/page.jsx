@@ -1,6 +1,6 @@
 "use client";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { displayFiles, getSignedURL } from "@/actions/upload/upload";
@@ -9,22 +9,23 @@ import axios from "axios";
 import { File } from "lucide-react";
 
 export default function FileUpload() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState([]);
   const [dispFiles, setDispFiles] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null); 
+  const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [customFileName, setCustomFileName] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
   const [totalFileSize, setTotalFileSize] = useState(0);
 
   useEffect(() => {
+    if (status === "loading") return;
     if (!session) {
       router.push("/");
     }
-  }, [session, router]);
+  }, [session]);
 
   async function fetchFiles() {
     try {
@@ -36,44 +37,43 @@ export default function FileUpload() {
         dispResponse.success &&
         dispResponse.success.response
       ) {
-        setDispFiles(dispResponse.success.response);
-        const filesize = dispFiles.reduce(
-          (sum, file) => sum + file.fileSize,
-          0
-        );
+        const newFiles = dispResponse.success.response;
+        setDispFiles(newFiles);
+
+        const filesize = newFiles.reduce((sum, file) => sum + file.fileSize, 0);
         setTotalFileSize(Math.ceil(filesize));
       } else {
-        console.error("Unexpected response structure:", dispResponse);
-        toast.error("Failed to load files: Invalid response structure");
+        console.error("Response: ", dispResponse);
+        toast.error("Failed to load files");
       }
     } catch (error) {
       console.error("Error fetching files:", error);
       toast.error("Failed to load files");
     }
   }
-
   useEffect(() => {
+    if (!session) return;
     fetchFiles();
   }, [session]);
 
-  // const handleDrag = (e) => {
-  //   e.preventDefault();
-  //   e.stopPropagation();
-  //   if (e.type === "dragenter" || e.type === "dragover") {
-  //     setDragActive(true);
-  //   } else if (e.type === "dragleave") {
-  //     setDragActive(false);
-  //   }
-  // };
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
 
-  // const handleDrop = (e) => {
-  //   e.preventDefault();
-  //   e.stopPropagation();
-  //   setDragActive(false);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
 
-  //   const uploadedFiles = e.dataTransfer.files;
-  //   toast.info("File upload functionality coming soon!");
-  // };
+    const uploadedFiles = e.dataTransfer.files;
+    toast.info("File upload functionality coming soon!");
+  };
 
   const computeSHA256 = async (file) => {
     const buffer = await file.arrayBuffer();
@@ -197,7 +197,6 @@ export default function FileUpload() {
                         type="file"
                         className="sr-only"
                         multiple
-                        accept="image/jpeg, image/png, image/webp, image/gif, video/mp4, video/webm, application/pdf, application/msword, application/vnd.openxmlformats-officedocument.presentationml.presentation"
                         onChange={handleFileChange}
                       />
                     </label>
@@ -333,7 +332,7 @@ export default function FileUpload() {
       </div>
       <div>
         {dispFiles && dispFiles.length > 0 ? (
-          <Files files={dispFiles} />
+          <Files files={dispFiles} fetchFiles={fetchFiles} />
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-white/70">
             <File className="h-16 w-16 mb-4 text-white/50" />

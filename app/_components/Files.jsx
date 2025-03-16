@@ -10,13 +10,14 @@ import {
   MoreHorizontal,
   Link2,
   ScanLine,
-  X
+  X,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import QRCode from "qrcode";
 import Image from "next/image";
+import deleteFile from "../../actions/delete/delete";
 
-export default function Files({ files }) {
+export default function Files({ files, fetchFiles }) {
   const [viewMode, setViewMode] = useState("grid");
   const [searchTerm, setSearchTerm] = useState("");
   const [copied, setCopied] = useState(false);
@@ -45,6 +46,23 @@ export default function Files({ files }) {
       setQrVisible(true);
     } catch (err) {
       toast.error("Failed to generate QR code");
+    }
+  }
+
+  async function handleDelete(id) {
+    try {
+      const response = await deleteFile(id);
+      console.log(response);
+
+      if (response.success) {
+        toast.success("File deleted");
+        await fetchFiles();
+      } else {
+        toast.error("File could not be deleted");
+      }
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      toast.error("Could not delete file");
     }
   }
 
@@ -137,6 +155,7 @@ export default function Files({ files }) {
                         <Download className="h-4 w-4 text-white/80" />
                       </a>
                       <button
+                        onClick={() => handleDelete(file.id)}
                         className="p-1 hover:bg-amber-500/10 rounded"
                         aria-label="Delete"
                       >
@@ -194,16 +213,25 @@ export default function Files({ files }) {
                   <Download className="h-4 w-4 text-white" />
                 </a>
                 <button
+                  onClick={() => handleDelete(file.id)}
                   className="p-1 bg-black/70 hover:bg-amber-500/20 rounded"
                   aria-label="Delete"
                 >
                   <Trash2 className="h-4 w-4 text-white" />
                 </button>
                 <button
-                  className="p-1 bg-black/70 hover:bg-amber-500/20 rounded"
+                  onClick={() => handleCopy(file.fileURL)}
+                  className="p-1 hover:bg-amber-500/10 rounded"
                   aria-label="More options"
                 >
-                  <MoreHorizontal className="h-4 w-4 text-white" />
+                  <Link2 className="h-4 w-4 text-white/80" />
+                </button>
+                <button
+                  onClick={() => generateQR(file.fileURL)}
+                  className="p-1 hover:bg-amber-500/10 rounded"
+                  aria-label="More options"
+                >
+                  <ScanLine className="h-4 w-4 text-white/80" />
                 </button>
               </div>
             </div>
@@ -222,7 +250,7 @@ export default function Files({ files }) {
           </p>
         </div>
       )}
-      
+
       {qrVisible && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
           <div className="bg-black p-6 rounded-lg shadow-lg relative max-w-sm w-full">

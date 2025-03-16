@@ -7,7 +7,7 @@ import prisma from "../db/db";
 
 const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString("hex")
 
-const acceptedType = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]
+// const acceptedType = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]
 
 const s3Client = new S3Client({
     region: process.env.AWS_BUCKET_REGION,
@@ -27,9 +27,10 @@ export async function getSignedURL(type, size, checksum, fileName) {
         return { failure: "Not authenticated" };
     }
 
-    if (!acceptedType.includes(type)) {
-        return { failure: "File type not supported" }
-    }
+    // if (!acceptedType.includes(type)) {
+    //     return { failure: "File type not supported" }
+    // }
+    
     if (size > acceptedSize) {
         return { failure: "File size too big" }
     }
