@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { displayFiles, getSignedURL } from "@/actions/upload/upload";
 import Files from "../_components/Files";
 import axios from "axios";
+import { File } from "lucide-react";
 
 export default function FileUpload() {
   const { data: session } = useSession();
@@ -13,11 +14,11 @@ export default function FileUpload() {
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState([]);
   const [dispFiles, setDispFiles] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null); 
   const [loading, setLoading] = useState(false);
   const [customFileName, setCustomFileName] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
-  const [totalFileSize, setTotalFileSize]=useState(0);
+  const [totalFileSize, setTotalFileSize] = useState(0);
 
   useEffect(() => {
     if (!session) {
@@ -30,9 +31,16 @@ export default function FileUpload() {
       const dispResponse = await displayFiles(session);
       console.log("Fetched files:", dispResponse);
 
-      if (dispResponse && dispResponse.success && dispResponse.success.response) {
+      if (
+        dispResponse &&
+        dispResponse.success &&
+        dispResponse.success.response
+      ) {
         setDispFiles(dispResponse.success.response);
-        const filesize = dispFiles.reduce((sum, file) => sum + file.fileSize, 0);
+        const filesize = dispFiles.reduce(
+          (sum, file) => sum + file.fileSize,
+          0
+        );
         setTotalFileSize(Math.ceil(filesize));
       } else {
         console.error("Unexpected response structure:", dispResponse);
@@ -134,7 +142,6 @@ export default function FileUpload() {
           error: "Upload failed. Please try again.",
         }
       );
-
     } finally {
       setLoading(false);
     }
@@ -301,7 +308,6 @@ export default function FileUpload() {
             </div>
           </div>
 
-          {/* Quick Stats */}
           <div className="bg-black-900 rounded-xl shadow-2xl p-6 border border-black-800 h-fit">
             <h2 className="text-xl font-semibold text-white mb-6">
               Storage Overview
@@ -316,72 +322,23 @@ export default function FileUpload() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-black-800 rounded-lg p-4">
                   <p className="text-black-400 text-sm">Files uploaded</p>
-                  <p className="text-white text-lg font-semibold">{dispFiles.length}</p>
+                  <p className="text-white text-lg font-semibold">
+                    {dispFiles.length}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* <div className="lg:col-span-3">
-            <div className="bg-black-900 rounded-xl shadow-2xl p-6 border border-black-800">
-              <h2 className="text-xl font-semibold text-white mb-6">
-                Recent Files
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[1, 2, 3].map((_, index) => (
-                  <div
-                    key={index}
-                    className="bg-black-800 rounded-lg p-4 hover:bg-black-750 transition-colors group"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-amber-500/10 rounded-lg">
-                        <svg
-                          className="h-6 w-6 text-amber-500"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
-                          document-name.pdf
-                        </p>
-                        <p className="text-xs text-black-400">2.4 MB • Yesterday</p>
-                      </div>
-                      <button className="text-black-500 hover:text-amber-500 transition-colors">
-                        <svg
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div> */}
         </div>
       </div>
       <div>
         {dispFiles && dispFiles.length > 0 ? (
           <Files files={dispFiles} />
         ) : (
-          <div className="text-center mt-6 font-bold text-2xl">
-            No files available
+          <div className="flex flex-col items-center justify-center py-12 text-white/70">
+            <File className="h-16 w-16 mb-4 text-white/50" />
+            <h3 className="text-xl font-medium mb-2">No files found</h3>
+            <p className="text-white/50">"Upload some files to get started"</p>
           </div>
         )}
       </div>
