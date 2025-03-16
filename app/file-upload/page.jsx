@@ -86,66 +86,58 @@ export default function FileUpload() {
   };
 
   function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    setFiles(file);
-    setSelectedFile(file);
-    setCustomFileName(file.name);
+    const selectedFiles = Array.from(e.target.files);
+    setFiles((prevFiles) => [...prevFiles, ...selectedFiles]);
   }
 
   async function handleFileUpload(e) {
     e.preventDefault();
     setLoading(true);
 
-    if (!selectedFile) {
-      toast.error("Please select a file first!");
+    if (files.length === 0) {
+      toast.error("Please select files first!");
       setLoading(false);
       return;
     }
 
     try {
-      await toast.promise(
-        (async () => {
-          try {
-            const checksum = await computeSHA256(selectedFile);
-            const response = await getSignedURL(
-              selectedFile.type,
-              selectedFile.size,
-              checksum,
-              customFileName
-            );
+      for (const file of files) {
+        const checksum = await computeSHA256(file);
+        const response = await getSignedURL(
+          file.type,
+          file.size,
+          checksum,
+          file.name
+        );
 
-            if (response.failure !== undefined) {
-              throw new Error("Could not upload file");
-            }
-
-            const { url, id } = response.success;
-
-            const uploadRes = await axios.put(url, selectedFile, {
-              headers: { "Content-Type": selectedFile.type },
-            });
-
-            if (uploadRes.status !== 200) {
-              throw new Error("Upload failed");
-            }
-
-            console.log("File uploaded successfully!");
-            fetchFiles();
-            return "File uploaded successfully!";
-          } catch (error) {
-            console.error("Upload failed", error);
-            throw new Error("Upload failed. Please try again.");
-          }
-        })(),
-        {
-          pending: "Uploading file...",
-          success: "File uploaded successfully!",
-          error: "Upload failed. Please try again.",
+        if (response.failure !== undefined) {
+          throw new Error(`Could not upload file: ${file.name}`);
         }
-      );
+
+        const { url } = response.success;
+
+        const uploadRes = await axios.put(url, file, {
+          headers: { "Content-Type": file.type },
+        });
+
+        if (uploadRes.status !== 200) {
+          throw new Error(`Upload failed for file: ${file.name}`);
+        }
+
+        console.log(`File uploaded successfully: ${file.name}`);
+      }
+
+      fetchFiles();
+      toast.success("All files uploaded successfully!");
+    } catch (error) {
+      console.error("Upload failed", error);
+      toast.error("Some files failed to upload. Please try again.");
     } finally {
       setLoading(false);
+      setFiles([]);
     }
   }
+
   return (
     <div className="min-h-screen bg-black pt-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
