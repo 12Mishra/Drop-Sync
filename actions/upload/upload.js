@@ -35,7 +35,7 @@ export async function getSignedURL(type, size, checksum, fileName) {
     }
 
     const fileKey = generateFileName();
-    
+
     const putObjectCommand = new PutObjectCommand({
         Bucket: process.env.AWS_BUCKET_NAME,
         Key: fileKey,
@@ -52,31 +52,57 @@ export async function getSignedURL(type, size, checksum, fileName) {
         { expiresIn: 60 }
     )
 
-    console.log({url});
-    
+    console.log({ url });
+
     //before returning from the function we need to implement a logic to include the files in the db
-    
-    const findUser= await prisma.user.findUnique({
-        where:{
-            id:parseInt(session.user.id)
+
+    const findUser = await prisma.user.findUnique({
+        where: {
+            id: parseInt(session.user.id)
         }
     })
     console.log(findUser);
+
+    const sizeStored=size/(1024*1024).toFixed(2);
+    console.log(sizeStored);
     
     const dbRes = await prisma.files.create({
         data: {
             fileName: fileName,
             fileURL: url.split("?")[0],
+            fileSize: sizeStored,
             user: {
-                connect: { id: parseInt(session.user.id) } 
+                connect: { id: parseInt(session.user.id) }
             }
+
         }
     });
 
-    return { 
-        success: { 
+    return {
+        success: {
             url: url,
-            id:dbRes.id,
-        } 
+            id: dbRes.id,
+        }
+    }
+}
+
+export async function displayFiles(session) {
+    try {
+        if (!session?.user?.id) {
+            return { error: "User not authenticated" };
+        }
+
+        const response = await prisma.files.findMany({
+            where: { user: { id: parseInt(session.user.id) } },
+            include: { user: true }
+        });
+
+        console.log(response);
+
+        return { success: { response } };
+
+    } catch (error) {
+        console.error("Error occurred:", error);
+        return { error: "Failed to fetch files" };
     }
 }

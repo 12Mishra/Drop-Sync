@@ -3,7 +3,8 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { getSignedURL, createFileRecord } from "@/actions/upload/upload";
+import { displayFiles, getSignedURL } from "@/actions/upload/upload";
+import Files from "../_components/Files";
 import axios from "axios";
 
 export default function FileUpload() {
@@ -11,16 +12,41 @@ export default function FileUpload() {
   const router = useRouter();
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState([]);
+  const [dispFiles, setDispFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [customFileName, setCustomFileName] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
+  const [totalFileSize, setTotalFileSize]=useState(0);
 
   useEffect(() => {
     if (!session) {
       router.push("/");
     }
   }, [session, router]);
+
+  async function fetchFiles() {
+    try {
+      const dispResponse = await displayFiles(session);
+      console.log("Fetched files:", dispResponse);
+
+      if (dispResponse && dispResponse.success && dispResponse.success.response) {
+        setDispFiles(dispResponse.success.response);
+        const filesize = dispFiles.reduce((sum, file) => sum + file.fileSize, 0);
+        setTotalFileSize(Math.ceil(filesize));
+      } else {
+        console.error("Unexpected response structure:", dispResponse);
+        toast.error("Failed to load files: Invalid response structure");
+      }
+    } catch (error) {
+      console.error("Error fetching files:", error);
+      toast.error("Failed to load files");
+    }
+  }
+
+  useEffect(() => {
+    fetchFiles();
+  }, [session]);
 
   // const handleDrag = (e) => {
   //   e.preventDefault();
@@ -68,52 +94,51 @@ export default function FileUpload() {
       return;
     }
 
-    await toast.promise(
-      (async () => {
-        try {
-          const checksum = await computeSHA256(selectedFile);
-          const response = await getSignedURL(
-            selectedFile.type,
-            selectedFile.size,
-            checksum,
-            customFileName
-          );
+    try {
+      await toast.promise(
+        (async () => {
+          try {
+            const checksum = await computeSHA256(selectedFile);
+            const response = await getSignedURL(
+              selectedFile.type,
+              selectedFile.size,
+              checksum,
+              customFileName
+            );
 
-          if (response.failure !== undefined) {
-            throw new Error("Could not upload file");
+            if (response.failure !== undefined) {
+              throw new Error("Could not upload file");
+            }
+
+            const { url, id } = response.success;
+
+            const uploadRes = await axios.put(url, selectedFile, {
+              headers: { "Content-Type": selectedFile.type },
+            });
+
+            if (uploadRes.status !== 200) {
+              throw new Error("Upload failed");
+            }
+
+            console.log("File uploaded successfully!");
+            fetchFiles();
+            return "File uploaded successfully!";
+          } catch (error) {
+            console.error("Upload failed", error);
+            throw new Error("Upload failed. Please try again.");
           }
-
-          const { url, id } = response.success;
-          console.log(url);
-          console.log(id);
-
-          const uploadRes = await axios.put(url, selectedFile, {
-            headers: {
-              "Content-Type": selectedFile.type,
-            },
-          });
-
-          if (uploadRes.status !== 200) {
-            throw new Error("Upload failed");
-          }
-
-          console.log("success");
-          return "File uploaded successfully!";
-        } catch (error) {
-          console.error("Upload failed", error);
-          throw new Error("Upload failed. Please try again.");
-        } finally {
-          setLoading(false);
+        })(),
+        {
+          pending: "Uploading file...",
+          success: "File uploaded successfully!",
+          error: "Upload failed. Please try again.",
         }
-      })(),
-      {
-        pending: "Uploading file...",
-        success: "File uploaded successfully!",
-        error: "Upload failed. Please try again.",
-      }
-    );
-  }
+      );
 
+    } finally {
+      setLoading(false);
+    }
+  }
   return (
     <div className="min-h-screen bg-black pt-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -277,32 +302,25 @@ export default function FileUpload() {
           </div>
 
           {/* Quick Stats */}
-          {/* <div className="bg-black-900 rounded-xl shadow-2xl p-6 border border-black-800 h-fit">
+          <div className="bg-black-900 rounded-xl shadow-2xl p-6 border border-black-800 h-fit">
             <h2 className="text-xl font-semibold text-white mb-6">
               Storage Overview
             </h2>
             <div className="space-y-6">
               <div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-black-400">Storage Used</span>
-                  <span className="text-amber-500">4.8 GB / 10 GB</span>
-                </div>
-                <div className="h-2 bg-black-700 rounded-full">
-                  <div className="h-2 bg-amber-500 rounded-full w-1/2"></div>
+                  <span className="text-black-400">Storage Used:</span>
+                  <span className="text-amber-500">{totalFileSize} MB</span>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-black-800 rounded-lg p-4">
-                  <p className="text-black-400 text-sm">Files</p>
-                  <p className="text-white text-lg font-semibold">128</p>
-                </div>
-                <div className="bg-black-800 rounded-lg p-4">
-                  <p className="text-black-400 text-sm">Shared</p>
-                  <p className="text-white text-lg font-semibold">24</p>
+                  <p className="text-black-400 text-sm">Files uploaded</p>
+                  <p className="text-white text-lg font-semibold">{dispFiles.length}</p>
                 </div>
               </div>
             </div>
-          </div> */}
+          </div>
 
           {/* <div className="lg:col-span-3">
             <div className="bg-black-900 rounded-xl shadow-2xl p-6 border border-black-800">
@@ -357,6 +375,15 @@ export default function FileUpload() {
             </div>
           </div> */}
         </div>
+      </div>
+      <div>
+        {dispFiles && dispFiles.length > 0 ? (
+          <Files files={dispFiles} />
+        ) : (
+          <div className="text-center mt-6 font-bold text-2xl">
+            No files available
+          </div>
+        )}
       </div>
     </div>
   );
