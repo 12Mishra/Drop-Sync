@@ -86,8 +86,10 @@ export default function FileUpload() {
   };
 
   function handleFileChange(e) {
-    const selectedFiles = Array.from(e.target.files);
-    setFiles((prevFiles) => [...prevFiles, ...selectedFiles]);
+    e.preventDefault();
+    setFiles(files)
+    setSelectedFile(e.target.files);
+
   }
 
   async function handleFileUpload(e) {
