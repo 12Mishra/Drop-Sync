@@ -1,15 +1,14 @@
 "use client";
 import { useSession } from "next-auth/react";
-import { redirect, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { displayFiles, getSignedURL } from "@/actions/upload/upload";
 import Files from "../_components/Files";
 import axios from "axios";
-import { File } from "lucide-react";
 
 export default function FileUpload() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState([]);
@@ -18,62 +17,55 @@ export default function FileUpload() {
   const [loading, setLoading] = useState(false);
   const [customFileName, setCustomFileName] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
-  const [totalFileSize, setTotalFileSize] = useState(0);
+  const [totalFileSize, setTotalFileSize]=useState(0);
 
   useEffect(() => {
-    if (status === "loading") return;
     if (!session) {
       router.push("/");
     }
-  }, [session]);
+  }, [session, router]);
 
   async function fetchFiles() {
     try {
       const dispResponse = await displayFiles(session);
       console.log("Fetched files:", dispResponse);
 
-      if (
-        dispResponse &&
-        dispResponse.success &&
-        dispResponse.success.response
-      ) {
-        const newFiles = dispResponse.success.response;
-        setDispFiles(newFiles);
-
-        const filesize = newFiles.reduce((sum, file) => sum + file.fileSize, 0);
+      if (dispResponse && dispResponse.success && dispResponse.success.response) {
+        setDispFiles(dispResponse.success.response);
+        const filesize = dispFiles.reduce((sum, file) => sum + file.fileSize, 0);
         setTotalFileSize(Math.ceil(filesize));
       } else {
-        console.error("Response: ", dispResponse);
-        toast.error("Failed to load files");
+        console.error("Unexpected response structure:", dispResponse);
+        toast.error("Failed to load files: Invalid response structure");
       }
     } catch (error) {
       console.error("Error fetching files:", error);
       toast.error("Failed to load files");
     }
   }
+
   useEffect(() => {
-    if (!session) return;
     fetchFiles();
   }, [session]);
 
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
+  // const handleDrag = (e) => {
+  //   e.preventDefault();
+  //   e.stopPropagation();
+  //   if (e.type === "dragenter" || e.type === "dragover") {
+  //     setDragActive(true);
+  //   } else if (e.type === "dragleave") {
+  //     setDragActive(false);
+  //   }
+  // };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+  // const handleDrop = (e) => {
+  //   e.preventDefault();
+  //   e.stopPropagation();
+  //   setDragActive(false);
 
-    const uploadedFiles = e.dataTransfer.files;
-    toast.info("File upload functionality coming soon!");
-  };
+  //   const uploadedFiles = e.dataTransfer.files;
+  //   toast.info("File upload functionality coming soon!");
+  // };
 
   const computeSHA256 = async (file) => {
     const buffer = await file.arrayBuffer();
@@ -86,60 +78,67 @@ export default function FileUpload() {
   };
 
   function handleFileChange(e) {
-    e.preventDefault();
-    setFiles(files)
-    setSelectedFile(e.target.files);
-
+    const file = e.target.files?.[0];
+    setFiles(file);
+    setSelectedFile(file);
+    setCustomFileName(file.name);
   }
 
   async function handleFileUpload(e) {
     e.preventDefault();
     setLoading(true);
 
-    if (files.length === 0) {
-      toast.error("Please select files first!");
+    if (!selectedFile) {
+      toast.error("Please select a file first!");
       setLoading(false);
       return;
     }
 
     try {
-      for (const file of files) {
-        const checksum = await computeSHA256(file);
-        const response = await getSignedURL(
-          file.type,
-          file.size,
-          checksum,
-          file.name
-        );
+      await toast.promise(
+        (async () => {
+          try {
+            const checksum = await computeSHA256(selectedFile);
+            const response = await getSignedURL(
+              selectedFile.type,
+              selectedFile.size,
+              checksum,
+              customFileName
+            );
 
-        if (response.failure !== undefined) {
-          throw new Error(`Could not upload file: ${file.name}`);
+            if (response.failure !== undefined) {
+              throw new Error("Could not upload file");
+            }
+
+            const { url, id } = response.success;
+
+            const uploadRes = await axios.put(url, selectedFile, {
+              headers: { "Content-Type": selectedFile.type },
+            });
+
+            if (uploadRes.status !== 200) {
+              throw new Error("Upload failed");
+            }
+
+            console.log("File uploaded successfully!");
+            fetchFiles();
+            return "File uploaded successfully!";
+          } catch (error) {
+            console.error("Upload failed", error);
+            throw new Error("Upload failed. Please try again.");
+          }
+        })(),
+        {
+          pending: "Uploading file...",
+          success: "File uploaded successfully!",
+          error: "Upload failed. Please try again.",
         }
+      );
 
-        const { url } = response.success;
-
-        const uploadRes = await axios.put(url, file, {
-          headers: { "Content-Type": file.type },
-        });
-
-        if (uploadRes.status !== 200) {
-          throw new Error(`Upload failed for file: ${file.name}`);
-        }
-
-        console.log(`File uploaded successfully: ${file.name}`);
-      }
-
-      fetchFiles();
-      toast.success("All files uploaded successfully!");
-    } catch (error) {
-      console.error("Upload failed", error);
-      toast.error("Some files failed to upload. Please try again.");
     } finally {
       setLoading(false);
-      setFiles([]);
     }
   }
-
   return (
     <div className="min-h-screen bg-black pt-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -191,6 +190,7 @@ export default function FileUpload() {
                         type="file"
                         className="sr-only"
                         multiple
+                        accept="image/jpeg, image/png, image/webp, image/gif, video/mp4, video/webm, application/pdf, application/msword, application/vnd.openxmlformats-officedocument.presentationml.presentation"
                         onChange={handleFileChange}
                       />
                     </label>
@@ -301,6 +301,7 @@ export default function FileUpload() {
             </div>
           </div>
 
+          {/* Quick Stats */}
           <div className="bg-black-900 rounded-xl shadow-2xl p-6 border border-black-800 h-fit">
             <h2 className="text-xl font-semibold text-white mb-6">
               Storage Overview
@@ -315,23 +316,72 @@ export default function FileUpload() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-black-800 rounded-lg p-4">
                   <p className="text-black-400 text-sm">Files uploaded</p>
-                  <p className="text-white text-lg font-semibold">
-                    {dispFiles.length}
-                  </p>
+                  <p className="text-white text-lg font-semibold">{dispFiles.length}</p>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* <div className="lg:col-span-3">
+            <div className="bg-black-900 rounded-xl shadow-2xl p-6 border border-black-800">
+              <h2 className="text-xl font-semibold text-white mb-6">
+                Recent Files
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map((_, index) => (
+                  <div
+                    key={index}
+                    className="bg-black-800 rounded-lg p-4 hover:bg-black-750 transition-colors group"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-amber-500/10 rounded-lg">
+                        <svg
+                          className="h-6 w-6 text-amber-500"
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">
+                          document-name.pdf
+                        </p>
+                        <p className="text-xs text-black-400">2.4 MB • Yesterday</p>
+                      </div>
+                      <button className="text-black-500 hover:text-amber-500 transition-colors">
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div> */}
         </div>
       </div>
       <div>
         {dispFiles && dispFiles.length > 0 ? (
-          <Files files={dispFiles} fetchFiles={fetchFiles} />
+          <Files files={dispFiles} />
         ) : (
-          <div className="flex flex-col items-center justify-center py-12 text-white/70">
-            <File className="h-16 w-16 mb-4 text-white/50" />
-            <h3 className="text-xl font-medium mb-2">No files found</h3>
-            <p className="text-white/50">"Upload some files to get started"</p>
+          <div className="text-center mt-6 font-bold text-2xl">
+            No files available
           </div>
         )}
       </div>
