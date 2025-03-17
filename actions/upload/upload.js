@@ -10,10 +10,10 @@ const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString("hex
 // const acceptedType = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]
 
 const s3Client = new S3Client({
-    region: process.env.AWS_BUCKET_REGION,
+    region: process.env.NEXT_AWS_BUCKET_REGION,
     credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        accessKeyId: process.env.NEXT_AWS_ACCESS_KEY,
+        secretAccessKey: process.env.NEXT_AWS_SECRET_ACCESS_KEY,
     },
 })
 
@@ -38,7 +38,7 @@ export async function getSignedURL(type, size, checksum, fileName) {
     const fileKey = generateFileName();
 
     const putObjectCommand = new PutObjectCommand({
-        Bucket: process.env.AWS_BUCKET_NAME,
+        Bucket: process.env.NEXT_AWS_BUCKET_NAME,
         Key: fileKey,
         ContentType: type,
         ContentLength: size,
