@@ -51,6 +51,8 @@ export default function Files({ files, fetchFiles }) {
 
   async function handleDelete(id) {
     try {
+      console.log(id);
+      
       const response = await deleteFile(id);
       console.log(response);
 

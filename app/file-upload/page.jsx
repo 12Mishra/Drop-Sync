@@ -8,7 +8,7 @@ import Files from "../_components/Files";
 import axios from "axios";
 
 export default function FileUpload() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState([]);
@@ -17,9 +17,10 @@ export default function FileUpload() {
   const [loading, setLoading] = useState(false);
   const [customFileName, setCustomFileName] = useState("");
   const [isRenaming, setIsRenaming] = useState(false);
-  const [totalFileSize, setTotalFileSize]=useState(0);
+  const [totalFileSize, setTotalFileSize] = useState(0);
 
   useEffect(() => {
+    if (status === "loading") return;
     if (!session) {
       router.push("/");
     }
@@ -30,9 +31,16 @@ export default function FileUpload() {
       const dispResponse = await displayFiles(session);
       console.log("Fetched files:", dispResponse);
 
-      if (dispResponse && dispResponse.success && dispResponse.success.response) {
+      if (
+        dispResponse &&
+        dispResponse.success &&
+        dispResponse.success.response
+      ) {
         setDispFiles(dispResponse.success.response);
-        const filesize = dispFiles.reduce((sum, file) => sum + file.fileSize, 0);
+        const filesize = dispFiles.reduce(
+          (sum, file) => sum + file.fileSize,
+          0
+        );
         setTotalFileSize(Math.ceil(filesize));
       } else {
         console.error("Unexpected response structure:", dispResponse);
@@ -134,7 +142,6 @@ export default function FileUpload() {
           error: "Upload failed. Please try again.",
         }
       );
-
     } finally {
       setLoading(false);
     }
@@ -143,7 +150,9 @@ export default function FileUpload() {
     <div className="min-h-screen bg-black pt-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">Your Files</h1>
+          <h1 className="text-3xl font-bold text-white">
+            Welcome {session?.user?.email}
+          </h1>
           <p className="mt-2 text-black-400">
             Upload and manage your files in one place
           </p>
@@ -316,7 +325,9 @@ export default function FileUpload() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-black-800 rounded-lg p-4">
                   <p className="text-black-400 text-sm">Files uploaded</p>
-                  <p className="text-white text-lg font-semibold">{dispFiles.length}</p>
+                  <p className="text-white text-lg font-semibold">
+                    {dispFiles.length}
+                  </p>
                 </div>
               </div>
             </div>
@@ -378,7 +389,7 @@ export default function FileUpload() {
       </div>
       <div>
         {dispFiles && dispFiles.length > 0 ? (
-          <Files files={dispFiles} />
+          <Files files={dispFiles} fetchFiles={fetchFiles} />
         ) : (
           <div className="text-center mt-6 font-bold text-2xl">
             No files available

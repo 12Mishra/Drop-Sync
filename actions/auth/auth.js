@@ -4,6 +4,8 @@ import prisma from "@/actions/db/db";
 import bcrypt from "bcryptjs";
 
 export async function createNewUser(email, password) {
+    console.log(email, password);
+    
     try {
         const existinguser = await prisma.user.findUnique({
             where: {
@@ -19,13 +21,16 @@ export async function createNewUser(email, password) {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-
+        console.log(hashedPassword);
+        
         const newUser = await prisma.user.create({
             data: {
                 email,
                 password: hashedPassword,
             },
-        });
+        }); 
+        console.log(newUser);
+        
 
         return {
             success: true,

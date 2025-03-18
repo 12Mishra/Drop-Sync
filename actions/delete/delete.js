@@ -16,6 +16,8 @@ export default async function deleteFile(id) {
         const fileToDelete = await prisma.files.findUnique({
             where: { id },
         });
+        console.log(fileToDelete);
+        
 
         if (!fileToDelete) {
             return { failure: "File not found" };
@@ -26,9 +28,11 @@ export default async function deleteFile(id) {
             return { failure: "Invalid file URL" };
         }
 
+        console.log(fileKey);
+        
         await s3Client.send(
             new DeleteObjectCommand({
-                Bucket: process.env.AWS_BUCKET_NAME,
+                Bucket: process.env.NEXT_AWS_BUCKET_NAME,
                 Key: fileKey,
             })
         );
