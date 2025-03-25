@@ -123,14 +123,15 @@ export default function FileUpload() {
             const uploadRes = await axios.put(url, selectedFile, {
               headers: { "Content-Type": selectedFile.type },
             });
-
-            if (uploadRes.status !== 200) {
+            console.log(uploadRes);
+            
+            if (uploadRes.status !== 200) { 
               throw new Error("Upload failed");
             }
-
             console.log("File uploaded successfully!");
             fetchFiles();
             return "File uploaded successfully!";
+
           } catch (error) {
             console.error("Upload failed", error);
             throw new Error("Upload failed. Please try again.");
