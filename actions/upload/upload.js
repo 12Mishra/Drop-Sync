@@ -17,7 +17,7 @@ const s3Client = new S3Client({
     },
 })
 
-const acceptedSize = 1024 * 1024 * 300;
+const acceptedSize = 1024 * 1024 * 10;
 
 export async function getSignedURL(type, size, checksum, fileName) {
 

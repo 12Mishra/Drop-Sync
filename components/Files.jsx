@@ -15,7 +15,7 @@ import {
 import { toast } from "react-toastify";
 import QRCode from "qrcode";
 import Image from "next/image";
-import deleteFile from "../../actions/delete/delete";
+import deleteFile from "@/actions/delete/delete";
 
 export default function Files({ files, fetchFiles }) {
   const [viewMode, setViewMode] = useState("grid");

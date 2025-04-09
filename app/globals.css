@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
+/* Set dark colors as default – not system dependent */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #ffffff; /* amber-500 */
 }
 
+/* Optional: Tailwind theming (if you're using inline theming somewhere) */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -12,12 +14,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* No media queries for prefers-color-scheme — we want dark always */
 
 body {
   background: var(--background);

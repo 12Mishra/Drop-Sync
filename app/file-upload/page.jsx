@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { displayFiles, getSignedURL } from "@/actions/upload/upload";
-import Files from "../_components/Files";
+import Files from "@/components/Files";
 import axios from "axios";
 
 export default function FileUpload() {
@@ -107,6 +107,7 @@ export default function FileUpload() {
         (async () => {
           try {
             const checksum = await computeSHA256(selectedFile);
+            
             const response = await getSignedURL(
               selectedFile.type,
               selectedFile.size,
