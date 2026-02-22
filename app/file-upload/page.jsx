@@ -11,12 +11,11 @@ export default function FileUpload() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [dragActive, setDragActive] = useState(false);
-  const [files, setFiles] = useState([]);
   const [dispFiles, setDispFiles] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [customFileNames, setCustomFileNames] = useState([]);
+  const [renamingIndex, setRenamingIndex] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [customFileName, setCustomFileName] = useState("");
-  const [isRenaming, setIsRenaming] = useState(false);
   const [totalFileSize, setTotalFileSize] = useState(0);
 
   useEffect(() => {
@@ -31,16 +30,10 @@ export default function FileUpload() {
       const dispResponse = await displayFiles(session);
       console.log("Fetched files:", dispResponse);
 
-      if (
-        dispResponse &&
-        dispResponse.success &&
-        dispResponse.success.response
-      ) {
-        setDispFiles(dispResponse.success.response);
-        const filesize = dispFiles.reduce(
-          (sum, file) => sum + file.fileSize,
-          0
-        );
+      if (dispResponse?.success?.response) {
+        const responseFiles = dispResponse.success.response;
+        setDispFiles(responseFiles);
+        const filesize = responseFiles.reduce((sum, file) => sum + file.fileSize, 0);
         setTotalFileSize(Math.ceil(filesize));
       } else {
         console.error("Unexpected response structure:", dispResponse);
@@ -56,91 +49,99 @@ export default function FileUpload() {
     fetchFiles();
   }, [session]);
 
-  // const handleDrag = (e) => {
-  //   e.preventDefault();
-  //   e.stopPropagation();
-  //   if (e.type === "dragenter" || e.type === "dragover") {
-  //     setDragActive(true);
-  //   } else if (e.type === "dragleave") {
-  //     setDragActive(false);
-  //   }
-  // };
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
 
-  // const handleDrop = (e) => {
-  //   e.preventDefault();
-  //   e.stopPropagation();
-  //   setDragActive(false);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      addFiles(droppedFiles);
+    }
+  };
 
-  //   const uploadedFiles = e.dataTransfer.files;
-  //   toast.info("File upload functionality coming soon!");
-  // };
+  const addFiles = (newFiles) => {
+    setSelectedFiles((prev) => [...prev, ...newFiles]);
+    setCustomFileNames((prev) => [...prev, ...newFiles.map((f) => f.name)]);
+  };
 
   const computeSHA256 = async (file) => {
     const buffer = await file.arrayBuffer();
     const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    return hashHex;
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   };
 
   function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    setFiles(file);
-    setSelectedFile(file);
-    setCustomFileName(file.name);
+    const newFiles = Array.from(e.target.files);
+    addFiles(newFiles);
+    // Reset input so the same file can be re-added if removed
+    e.target.value = "";
+  }
+
+  function removeFile(index) {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setCustomFileNames((prev) => prev.filter((_, i) => i !== index));
+    if (renamingIndex === index) setRenamingIndex(null);
   }
 
   async function handleFileUpload(e) {
     e.preventDefault();
-    setLoading(true);
-
-    if (!selectedFile) {
+    if (selectedFiles.length === 0) {
       toast.error("Please select a file first!");
-      setLoading(false);
       return;
     }
+    setLoading(true);
 
+    const count = selectedFiles.length;
     try {
       await toast.promise(
         (async () => {
-          try {
-            const checksum = await computeSHA256(selectedFile);
-            
+          for (let i = 0; i < selectedFiles.length; i++) {
+            const file = selectedFiles[i];
+            const fileName = customFileNames[i];
+
+            const checksum = await computeSHA256(file);
             const response = await getSignedURL(
-              selectedFile.type,
-              selectedFile.size,
+              file.type,
+              file.size,
               checksum,
-              customFileName
+              fileName
             );
 
             if (response.failure !== undefined) {
-              throw new Error("Could not upload file");
+              throw new Error(`Could not upload "${fileName}"`);
             }
 
-            const { url, id } = response.success;
-
-            const uploadRes = await axios.put(url, selectedFile, {
-              headers: { "Content-Type": selectedFile.type },
+            const { url } = response.success;
+            const uploadRes = await axios.put(url, file, {
+              headers: { "Content-Type": file.type },
             });
-            console.log(uploadRes);
-            
-            if (uploadRes.status !== 200) { 
-              throw new Error("Upload failed");
-            }
-            console.log("File uploaded successfully!");
-            fetchFiles();
-            return "File uploaded successfully!";
 
-          } catch (error) {
-            console.error("Upload failed", error);
-            throw new Error("Upload failed. Please try again.");
+            if (uploadRes.status !== 200) {
+              throw new Error(`Upload failed for "${fileName}"`);
+            }
+
+            console.log(`Uploaded: ${fileName}`);
           }
+
+          setSelectedFiles([]);
+          setCustomFileNames([]);
+          setRenamingIndex(null);
+          fetchFiles();
         })(),
         {
-          pending: "Uploading file...",
-          success: "File uploaded successfully!",
+          pending: `Uploading ${count} file${count > 1 ? "s" : ""}...`,
+          success: `${count} file${count > 1 ? "s" : ""} uploaded successfully!`,
           error: "Upload failed. Please try again.",
         }
       );
@@ -148,6 +149,7 @@ export default function FileUpload() {
       setLoading(false);
     }
   }
+
   return (
     <div className="min-h-screen bg-black pt-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -172,6 +174,10 @@ export default function FileUpload() {
                     ? "border-amber-500 bg-amber-500/10"
                     : "border-black-700 hover:border-amber-500/50"
                 }`}
+                onDragEnter={handleDrag}
+                onDragOver={handleDrag}
+                onDragLeave={handleDrag}
+                onDrop={handleDrop}
               >
                 <div className="space-y-4">
                   <div className="mx-auto h-16 w-16 bg-black rounded-full flex items-center justify-center">
@@ -207,90 +213,97 @@ export default function FileUpload() {
                     </label>
                     <p className="pl-1 inline">or drag and drop</p>
                   </div>
-                  {selectedFile && (
-                    <div className="mt-4 p-3 bg-gray-900 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <svg
-                            className="h-6 w-6 text-amber-500"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
-                          {isRenaming ? (
-                            <input
-                              type="text"
-                              value={customFileName}
-                              onChange={(e) =>
-                                setCustomFileName(e.target.value)
-                              }
-                              className="bg-gray-800 text-white px-2 py-1 rounded-md text-sm"
-                              onBlur={() => setIsRenaming(false)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  setIsRenaming(false);
-                                }
-                              }}
-                              autoFocus
-                            />
-                          ) : (
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm text-white truncate max-w-xs">
-                                {customFileName}
-                              </span>
-                              <button
-                                onClick={() => setIsRenaming(true)}
-                                className="text-amber-500 hover:text-amber-400"
-                              >
-                                <svg
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSelectedFile(null);
-                            setFiles(null);
-                          }}
-                          className="text-gray-400 hover:text-amber-500 transition-colors"
+
+                  {/* Selected files list */}
+                  {selectedFiles.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {selectedFiles.map((file, index) => (
+                        <div
+                          key={index}
+                          className="p-3 bg-gray-900 rounded-lg text-left"
                         >
-                          <svg
-                            className="h-5 w-5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="mt-1 text-xs text-gray-400">
-                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
-                      </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 min-w-0">
+                              <svg
+                                className="h-6 w-6 text-amber-500 flex-shrink-0"
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                              </svg>
+                              {renamingIndex === index ? (
+                                <input
+                                  type="text"
+                                  value={customFileNames[index]}
+                                  onChange={(e) => {
+                                    const updated = [...customFileNames];
+                                    updated[index] = e.target.value;
+                                    setCustomFileNames(updated);
+                                  }}
+                                  className="bg-gray-800 text-white px-2 py-1 rounded-md text-sm flex-1 min-w-0"
+                                  onBlur={() => setRenamingIndex(null)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") setRenamingIndex(null);
+                                  }}
+                                  autoFocus
+                                />
+                              ) : (
+                                <div className="flex items-center space-x-2 min-w-0">
+                                  <span className="text-sm text-white truncate max-w-xs">
+                                    {customFileNames[index]}
+                                  </span>
+                                  <button
+                                    onClick={() => setRenamingIndex(index)}
+                                    className="text-amber-500 hover:text-amber-400 flex-shrink-0"
+                                  >
+                                    <svg
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => removeFile(index)}
+                              className="text-gray-400 hover:text-amber-500 transition-colors flex-shrink-0 ml-2"
+                            >
+                              <svg
+                                className="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                          <div className="mt-1 text-xs text-gray-400">
+                            {(file.size / (1024 * 1024)).toFixed(2)} MB
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
+
                   <p className="text-xs text-gray-500">
                     Supports any file type up to 10MB
                   </p>
@@ -300,14 +313,16 @@ export default function FileUpload() {
             <div className="flex items-center justify-center mt-4">
               <button
                 className={`text-white rounded-lg px-4 py-2 ${
-                  selectedFile
+                  selectedFiles.length > 0
                     ? "bg-amber-500 hover:bg-amber-600"
                     : "bg-gray-600 cursor-not-allowed"
                 } transition-colors`}
                 onClick={handleFileUpload}
-                disabled={!selectedFile}
+                disabled={selectedFiles.length === 0 || loading}
               >
-                {selectedFile ? "Upload File" : "Select a file"}
+                {selectedFiles.length > 0
+                  ? `Upload ${selectedFiles.length} File${selectedFiles.length > 1 ? "s" : ""}`
+                  : "Select a file"}
               </button>
             </div>
           </div>
@@ -334,59 +349,6 @@ export default function FileUpload() {
               </div>
             </div>
           </div>
-
-          {/* <div className="lg:col-span-3">
-            <div className="bg-black-900 rounded-xl shadow-2xl p-6 border border-black-800">
-              <h2 className="text-xl font-semibold text-white mb-6">
-                Recent Files
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[1, 2, 3].map((_, index) => (
-                  <div
-                    key={index}
-                    className="bg-black-800 rounded-lg p-4 hover:bg-black-750 transition-colors group"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-amber-500/10 rounded-lg">
-                        <svg
-                          className="h-6 w-6 text-amber-500"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
-                          document-name.pdf
-                        </p>
-                        <p className="text-xs text-black-400">2.4 MB • Yesterday</p>
-                      </div>
-                      <button className="text-black-500 hover:text-amber-500 transition-colors">
-                        <svg
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div> */}
         </div>
       </div>
       <div>
