@@ -15,6 +15,7 @@
     "axios": "^1.8.3",
     "bcryptjs": "^3.0.2",
     "framer-motion": "^12.5.0",
+    "geist": "^1.7.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.482.0",
     "motion": "^12.5.0",
