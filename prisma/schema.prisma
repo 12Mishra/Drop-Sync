@@ -26,9 +26,11 @@ model Files {
   fileName String?
   fileURL  String
   fileSize Float
-  user_id  Int     
+  tags     String[]
+  category String   @default("Uncategorized")
+  user_id  Int
   user     User    @relation(fields: [user_id], references: [id])
-  createdAt DateTime @default(now()) 
-  
-  @@index([user_id]) 
+  createdAt DateTime @default(now())
+
+  @@index([user_id])
 }

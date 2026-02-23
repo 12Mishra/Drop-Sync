@@ -16,7 +16,7 @@ export default function RootLayout({ children }) {
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
       >
-        <SessionProvider> {/* Ensure Provider wraps the entire app */}
+        <SessionProvider>
           {children}
         </SessionProvider>
         <ToastContainer 

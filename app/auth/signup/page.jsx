@@ -2,10 +2,11 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "react-toastify";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createNewUser } from "@/actions/auth/auth";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { FolderOpen, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -21,12 +22,12 @@ export default function SignUp() {
 
       const result = await createNewUser(email, password);
       console.log(result);
-      
+
       if (result?.success) {
-        toast.success("User created successfully");
+        toast.success("Account created — please sign in");
         router.push("/auth/login");
       } else {
-        toast.error(result?.message || "User could not be created");
+        toast.error(result?.message || "Could not create account");
         setLoading(false);
       }
     },
@@ -40,68 +41,95 @@ export default function SignUp() {
   }, [session, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-white-900">
-            Sign up to your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-white-600">
-            Or{" "}
-            <Link
-              href="/auth/login"
-              className="font-medium text-amber-600 hover:text-amber-500"
-            >
-              Login
-            </Link>
-          </p>
+    <div className="min-h-screen bg-black flex items-center justify-center px-4 pt-16">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-amber-500/6 rounded-full blur-[120px]" />
+      </div>
+
+      <div className="w-full max-w-sm">
+        <div className="flex flex-col items-center mb-8">
+          <div className="h-10 w-10 bg-amber-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-amber-500/25">
+            <FolderOpen className="h-5 w-5 text-black" />
+          </div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Create an account</h1>
+          <p className="text-white/40 text-sm mt-1">Start managing your files with Drop&amp;Sync</p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSignUp}>
-          <div className="rounded-md shadow-sm space-y-4">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
+        <div className="bg-zinc-950/60 border border-white/8 rounded-2xl p-8 shadow-2xl">
+          <form onSubmit={handleSignUp} className="space-y-5">
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-white/60">
+                Email
               </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-white-300 placeholder-white-500 text-white-900 focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-4 w-4 text-white/25" />
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-white/[0.04] border border-white/8 rounded-lg text-white text-sm placeholder-white/20 focus:outline-none focus:border-amber-500/50 focus:bg-white/[0.06] transition-colors"
+                />
+              </div>
             </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
+
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-white/60">
                 Password
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-white-300 placeholder-white-500 text-white-900 focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-4 w-4 text-white/25" />
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-white/[0.04] border border-white/8 rounded-lg text-white text-sm placeholder-white/20 focus:outline-none focus:border-amber-500/50 focus:bg-white/[0.06] transition-colors"
+                />
+              </div>
             </div>
-          </div>
-          <div>
+
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold text-sm rounded-lg transition-colors shadow-lg shadow-amber-500/20 mt-2"
             >
-              {loading ? "Creating Account..." : "Create Account"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating account…
+                </>
+              ) : (
+                <>
+                  Create account
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
-          </div>
-        </form>
+          </form>
+        </div>
+
+        <p className="text-center text-sm text-white/30 mt-5">
+          Already have an account?{" "}
+          <Link
+            href="/auth/login"
+            className="text-amber-500 hover:text-amber-400 font-medium transition-colors"
+          >
+            Sign in
+          </Link>
+        </p>
       </div>
     </div>
   );
