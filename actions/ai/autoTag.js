@@ -3,7 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import prisma from "../db/db";
+import {prisma} from "../db/db";
 
 
 const s3Client = new S3Client({
